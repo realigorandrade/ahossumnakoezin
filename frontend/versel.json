@@ -1,6 +1,6 @@
 {
-  "installCommand": "npm install --include=dev",
-  "buildCommand": "npx vite build",
+  "installCommand": "npm install --production=false",
+  "buildCommand": "npx --no-install vite build",
   "outputDirectory": "dist",
   "rewrites": [
     {
