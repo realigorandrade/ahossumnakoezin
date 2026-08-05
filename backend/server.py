@@ -285,8 +285,8 @@ async def get_settings():
                 "start": "10:00", "end": "18:00", "slot_minutes": 90,
                 "weekdays": [0, 1, 2, 3, 4, 5],  # Mon-Sat
             },
-            "pix_key": "kwe.ahossum@pix.com.br",
-            "pix_holder": "Eliton d'Ajauncy",
+            "pix_key": "ahossumnakoezin@gmail.com",
+            "pix_holder": "Eliton Batista",
             "support_whatsapp": "+5519988371125",
             "gira": {
                 "weekday": 2,        # 0=Mon..6=Sun (2=Wed)
@@ -299,9 +299,9 @@ async def get_settings():
     # Ensure new keys exist even in already-seeded DBs
     updates = {}
     if "pix_key" not in s:
-        updates["pix_key"] = "kwe.ahossum@pix.com.br"
+        updates["pix_key"] = "ahossumnakoezin@gmail.com"
     if "pix_holder" not in s:
-        updates["pix_holder"] = "Eliton d'Ajauncy"
+        updates["pix_holder"] = "Eliton Batista"
     if "support_whatsapp" not in s:
         updates["support_whatsapp"] = "+5519988371125"
     if "gira" not in s:
