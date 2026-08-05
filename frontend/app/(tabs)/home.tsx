@@ -13,6 +13,7 @@ type Service = {
   name: string;
   short_desc: string;
   price: number;
+  duration_minutes?: number;
   modalities: string[];
   image: string;
 };
@@ -92,6 +93,12 @@ function ServiceCard({ svc, onPress }: { svc: Service; onPress: () => void }) {
           <Text style={styles.cardDesc} numberOfLines={2}>{svc.short_desc}</Text>
           <View style={styles.cardFooter}>
             <View style={styles.modalityWrap}>
+              {svc.duration_minutes ? (
+                <View style={styles.durationPill}>
+                  <Ionicons name="time-outline" size={11} color={COLORS.brand} />
+                  <Text style={styles.durationText}>{svc.duration_minutes} min</Text>
+                </View>
+              ) : null}
               {svc.modalities.map(m => (
                 <View key={m} style={styles.modalityPill}>
                   <Text style={styles.modalityText}>{modalityLabel(m)}</Text>
@@ -137,7 +144,13 @@ const styles = StyleSheet.create({
   cardTitle: { color: COLORS.onSurface, fontFamily: FONTS.displayBold, fontSize: 22 },
   cardDesc: { color: COLORS.onSurfaceSecondary, fontSize: 13, lineHeight: 18 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: SPACING.sm },
-  modalityWrap: { flexDirection: 'row', gap: SPACING.xs },
+  modalityWrap: { flexDirection: 'row', gap: SPACING.xs, flexWrap: 'wrap', flex: 1 },
+  durationPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.brand,
+    borderRadius: RADIUS.pill, paddingHorizontal: SPACING.sm, paddingVertical: 3,
+  },
+  durationText: { color: COLORS.brand, fontSize: 11, fontWeight: '600' },
   modalityPill: {
     borderWidth: 1, borderColor: COLORS.brand, borderRadius: RADIUS.pill,
     paddingHorizontal: SPACING.sm, paddingVertical: 3,

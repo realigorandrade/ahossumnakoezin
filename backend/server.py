@@ -113,6 +113,10 @@ class ServiceUpdate(BaseModel):
     observations: Optional[List[str]] = None
     name: Optional[str] = None
     description: Optional[str] = None
+    duration_minutes: Optional[int] = None
+    image: Optional[str] = None
+    modalities: Optional[List[str]] = None
+    short_desc: Optional[str] = None
 
 
 class BlockedSlotIn(BaseModel):
@@ -130,6 +134,39 @@ class WorkingHoursUpdate(BaseModel):
 class HolidayIn(BaseModel):
     date: str
     label: str
+
+
+class ServiceUpdateFull(BaseModel):
+    name: Optional[str] = None
+    short_desc: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    duration_minutes: Optional[int] = None
+    modalities: Optional[List[str]] = None
+    image: Optional[str] = None
+    observations: Optional[List[str]] = None
+
+
+class EventIn(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    date: Optional[str] = None      # YYYY-MM-DD (single date)
+    time: Optional[str] = None      # HH:MM
+    recurrence: Optional[str] = None  # e.g. "Todas as segundas-feiras"
+    month: Optional[str] = None     # display month label
+    category: Optional[str] = "geral"
+
+
+class GiraUpdate(BaseModel):
+    weekday: int  # 0=Mon..6=Sun
+    time: str
+    note: Optional[str] = ""
+
+
+class PaymentSettingsIn(BaseModel):
+    pix_key: Optional[str] = None
+    pix_holder: Optional[str] = None
+    support_whatsapp: Optional[str] = None
 
 
 # ---------- Auth ----------
@@ -154,6 +191,9 @@ async def register(body: RegisterIn):
         "created_at": now_utc().isoformat(),
     }
     await db.users.insert_one(user)
+    await enqueue_notification("new_user", {
+        "name": user["full_name"], "email": user["email"], "phone": user["phone"],
+    })
     token = create_token(user["id"], user["role"])
     return {
         "access_token": token,
@@ -245,15 +285,133 @@ async def get_settings():
                 "start": "10:00", "end": "18:00", "slot_minutes": 90,
                 "weekdays": [0, 1, 2, 3, 4, 5],  # Mon-Sat
             },
+            "pix_key": "kwe.ahossum@pix.com.br",
+            "pix_holder": "Eliton d'Ajauncy",
+            "support_whatsapp": "+5519988371125",
+            "gira": {
+                "weekday": 2,        # 0=Mon..6=Sun (2=Wed)
+                "time": "19:30",
+                "note": "Horário sujeito a alterações.",
+            },
         }
         await db.settings.insert_one(s)
+        s = await db.settings.find_one({"id": "global"}, {"_id": 0})
+    # Ensure new keys exist even in already-seeded DBs
+    updates = {}
+    if "pix_key" not in s:
+        updates["pix_key"] = "kwe.ahossum@pix.com.br"
+    if "pix_holder" not in s:
+        updates["pix_holder"] = "Eliton d'Ajauncy"
+    if "support_whatsapp" not in s:
+        updates["support_whatsapp"] = "+5519988371125"
+    if "gira" not in s:
+        updates["gira"] = {"weekday": 2, "time": "19:30", "note": "Horário sujeito a alterações."}
+    if updates:
+        await db.settings.update_one({"id": "global"}, {"$set": updates})
         s = await db.settings.find_one({"id": "global"}, {"_id": 0})
     return s
 
 
 @api_router.get("/settings")
-async def read_settings(user=Depends(get_current_user)):
+async def read_settings():
+    """Public settings (PIX key, WhatsApp support, working hours, gira schedule)."""
     return await get_settings()
+
+
+@api_router.put("/admin/payment-settings")
+async def update_payment_settings(body: PaymentSettingsIn, admin=Depends(admin_required)):
+    updates = {k: v for k, v in body.dict().items() if v is not None}
+    if not updates:
+        raise HTTPException(400, "Nada para atualizar")
+    await db.settings.update_one({"id": "global"}, {"$set": updates}, upsert=True)
+    return await get_settings()
+
+
+@api_router.put("/admin/gira")
+async def update_gira(body: GiraUpdate, admin=Depends(admin_required)):
+    await db.settings.update_one(
+        {"id": "global"},
+        {"$set": {"gira": body.dict()}},
+        upsert=True,
+    )
+    return await get_settings()
+
+
+# ---------- Events ----------
+@api_router.get("/events")
+async def list_events():
+    items = await db.events.find({}, {"_id": 0}).to_list(500)
+    # Sort by date if present, else by created_at
+    def _key(e):
+        return (e.get("date") or "9999-99-99", e.get("time") or "99:99")
+    items.sort(key=_key)
+    return items
+
+
+@api_router.post("/admin/events")
+async def add_event(body: EventIn, admin=Depends(admin_required)):
+    entry = {"id": str(uuid.uuid4()), **body.dict(), "created_at": now_utc().isoformat()}
+    await db.events.insert_one(entry)
+    entry.pop("_id", None)
+    return entry
+
+
+@api_router.put("/admin/events/{eid}")
+async def edit_event(eid: str, body: EventIn, admin=Depends(admin_required)):
+    updates = {k: v for k, v in body.dict().items() if v is not None}
+    result = await db.events.update_one({"id": eid}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(404, "Evento não encontrado")
+    return await db.events.find_one({"id": eid}, {"_id": 0})
+
+
+@api_router.delete("/admin/events/{eid}")
+async def del_event(eid: str, admin=Depends(admin_required)):
+    await db.events.delete_one({"id": eid})
+    return {"ok": True}
+
+
+# ---------- Admin: create/delete services ----------
+@api_router.post("/admin/services")
+async def admin_create_service(body: ServiceUpdate, admin=Depends(admin_required)):
+    data = {k: v for k, v in body.dict().items() if v is not None}
+    if "name" not in data:
+        raise HTTPException(400, "Nome é obrigatório")
+    data["id"] = str(uuid.uuid4())[:8]
+    data.setdefault("modalities", ["presencial"])
+    data.setdefault("observations", [])
+    data.setdefault("duration_minutes", 60)
+    data.setdefault("price", 0)
+    data.setdefault("image", "")
+    data.setdefault("short_desc", "")
+    data.setdefault("description", "")
+    await db.services.insert_one(data)
+    return {k: v for k, v in data.items() if k != "_id"}
+
+
+@api_router.delete("/admin/services/{service_id}")
+async def admin_delete_service(service_id: str, admin=Depends(admin_required)):
+    await db.services.delete_one({"id": service_id})
+    return {"ok": True}
+
+
+# ---------- Notification queue (structure for WhatsApp) ----------
+async def enqueue_notification(kind: str, payload: dict):
+    """Store a notification event so admin can review or a future WhatsApp worker
+    can deliver via +5519988371125. Structure only — no live send here."""
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()),
+        "kind": kind,
+        "payload": payload,
+        "status": "pending",
+        "created_at": now_utc().isoformat(),
+    })
+
+
+@api_router.get("/admin/notifications")
+async def admin_notifications(admin=Depends(admin_required)):
+    items = await db.notifications.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return items
 
 
 @api_router.put("/admin/working-hours")
@@ -411,6 +569,12 @@ async def create_booking(body: BookingCreate, user=Depends(get_current_user)):
         "created_at": now_utc().isoformat(),
     }
     await db.bookings.insert_one(booking)
+    await enqueue_notification("new_booking", {
+        "user_name": booking["user_name"], "user_phone": booking["user_phone"],
+        "service": booking["service_name"], "date": booking["date"],
+        "time": booking["time"], "modality": booking["modality"],
+        "price": booking["price"],
+    })
     booking.pop("_id", None)
     return booking
 
@@ -563,9 +727,11 @@ async def seed_data():
             "short_desc": "Consulta espiritual através do Tarot para orientação, autoconhecimento e direcionamentos.",
             "description": "Consulta espiritual através do Tarot para orientação, autoconhecimento e direcionamentos.",
             "price": 150.00,
+            "duration_minutes": 60,
             "modalities": ["presencial", "online"],
-            "image": "https://images.unsplash.com/photo-1613738053817-7f0983aa456d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTN8MHwxfHNlYXJjaHwxfHx0YXJvdCUyMGNhcmRzJTIwZGFyayUyMGdvbGQlMjBhZXN0aGV0aWN8ZW58MHx8fHwxNzg1ODkwNjI2fDA&ixlib=rb-4.1.0&q=85",
+            "image": "https://images.unsplash.com/photo-1613738053817-7f0983aa456d?fm=jpg&q=85&w=1400&auto=format&fit=crop",
             "observations": obs_online_presencial,
+            "category": "consulta",
         },
         {
             "id": "buzios",
@@ -573,9 +739,11 @@ async def seed_data():
             "short_desc": "Consulta espiritual através do Jogo de Búzios para orientação, autoconhecimento e direcionamentos.",
             "description": "Consulta espiritual através do Jogo de Búzios para orientação, autoconhecimento e direcionamentos.",
             "price": 180.00,
+            "duration_minutes": 60,
             "modalities": ["presencial", "online"],
-            "image": "https://images.unsplash.com/photo-1518709594023-6eab9bab7b23?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200",
+            "image": "https://images.unsplash.com/photo-1776164893324-19d102148b2a?fm=jpg&q=85&w=1400&auto=format&fit=crop",
             "observations": obs_online_presencial,
+            "category": "consulta",
         },
         {
             "id": "pombo-gira",
@@ -583,9 +751,29 @@ async def seed_data():
             "short_desc": "Atendimento espiritual realizado com a entidade Pombo Gira Maria Padilha.",
             "description": "Atendimento espiritual realizado com a entidade Pombo Gira Maria Padilha.",
             "price": 250.00,
+            "duration_minutes": 90,
             "modalities": ["presencial"],
             "image": "https://images.unsplash.com/photo-1615793171257-3fd80dd14091?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwxfHxteXN0aWMlMjBjYW5kbGVzJTIwZGFyayUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzg1ODkwNjI2fDA&ixlib=rb-4.1.0&q=85",
             "observations": obs_presencial_only,
+            "category": "consulta",
+        },
+        {
+            "id": "banhos-ervas",
+            "name": "Banhos, Ervas e Firmezas",
+            "short_desc": "Preparo de banhos energéticos, ervas sagradas e firmezas para limpeza, proteção e prosperidade.",
+            "description": "Preparo de banhos energéticos, ervas sagradas e firmezas espirituais para limpeza, proteção, abertura de caminhos e prosperidade. Consulte a casa para escolher o banho ou firmeza adequado ao seu momento.",
+            "price": 80.00,
+            "duration_minutes": 30,
+            "modalities": ["presencial"],
+            "image": "https://images.unsplash.com/photo-1470137237906-d8a4f71e1966?crop=entropy&cs=srgb&fm=jpg&q=85&w=1400",
+            "observations": [
+                "Atendimento exclusivamente presencial.",
+                "Compareça com 10 minutos de antecedência.",
+                "O preparo somente será entregue após a confirmação do pagamento.",
+                "Não há devolução do valor pago.",
+                "Reagendamento apenas com 24 horas de antecedência.",
+            ],
+            "category": "banhos",
         },
     ]
     # Remove old combined service if it exists
@@ -594,6 +782,54 @@ async def seed_data():
         existing_svc = await db.services.find_one({"id": svc["id"]})
         if not existing_svc:
             await db.services.insert_one(svc)
+        else:
+            # Backfill duration/image/category for existing services
+            patch = {}
+            if "duration_minutes" not in existing_svc:
+                patch["duration_minutes"] = svc["duration_minutes"]
+            if "category" not in existing_svc:
+                patch["category"] = svc["category"]
+            if svc["id"] == "buzios" and existing_svc.get("image", "").find("1518709594023") >= 0:
+                patch["image"] = svc["image"]
+            if svc["id"] == "tarot" and existing_svc.get("image", "").find("1613738053817") >= 0:
+                patch["image"] = svc["image"]
+            if patch:
+                await db.services.update_one({"id": svc["id"]}, {"$set": patch})
+
+    # Seed events
+    events_seed = [
+        {
+            "id": "obaluae-2025-08",
+            "title": "Rezas de Obaluaê",
+            "description": "Rezas dedicadas a Obaluaê durante todo o mês de agosto.",
+            "recurrence": "Todas as segundas-feiras",
+            "month": "Agosto",
+            "date": None, "time": "19:30",
+            "category": "reza",
+        },
+        {
+            "id": "festa-ere-2025-09",
+            "title": "Festa de Erê",
+            "description": "Celebração da Festa de Erê na casa espiritual.",
+            "date": "2025-09-27", "time": "16:00",
+            "month": "Setembro",
+            "recurrence": None,
+            "category": "festa",
+        },
+        {
+            "id": "festa-mp-2025-10",
+            "title": "Festa de Maria Padilha",
+            "description": "Celebração da Festa de Maria Padilha.",
+            "date": "2025-10-24", "time": None,
+            "month": "Outubro",
+            "recurrence": None,
+            "category": "festa",
+        },
+    ]
+    for ev in events_seed:
+        existing_ev = await db.events.find_one({"id": ev["id"]})
+        if not existing_ev:
+            await db.events.insert_one(ev)
     await get_settings()  # initialize default settings
     logger.info("Seed completed")
 

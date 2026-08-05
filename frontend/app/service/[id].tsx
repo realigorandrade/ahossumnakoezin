@@ -9,6 +9,7 @@ import { useAuth } from '@/src/auth';
 
 type Service = {
   id: string; name: string; description: string; price: number;
+  duration_minutes?: number;
   modalities: string[]; image: string; observations: string[];
 };
 
@@ -85,7 +86,8 @@ export default function ServiceDetail() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.detail || 'Falha ao agendar');
-      setSuccess({ id: data.id });
+      // Navigate to payment/comprovante screen
+      router.replace(`/payment/${data.id}`);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -116,6 +118,12 @@ export default function ServiceDetail() {
               </View>
               <Text style={styles.heroTitle}>{svc.name}</Text>
               <Text style={styles.heroDesc}>{svc.description}</Text>
+              {svc.duration_minutes ? (
+                <View style={styles.durationBadge}>
+                  <Ionicons name="time-outline" size={13} color={COLORS.brand} />
+                  <Text style={styles.durationBadgeText}>Duração estimada: {svc.duration_minutes} min</Text>
+                </View>
+              ) : null}
             </View>
           </SafeAreaView>
         </ImageBackground>
@@ -285,6 +293,13 @@ const styles = StyleSheet.create({
   priceText: { color: COLORS.onBrandPrimary, fontWeight: '700', fontSize: 13 },
   heroTitle: { color: COLORS.onSurface, fontFamily: FONTS.displayBold, fontSize: 28, marginBottom: SPACING.xs },
   heroDesc: { color: COLORS.onSurfaceSecondary, fontSize: 13, lineHeight: 18 },
+  durationBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    marginTop: SPACING.sm, paddingHorizontal: SPACING.md, paddingVertical: 5,
+    borderRadius: RADIUS.pill, borderWidth: 1, borderColor: COLORS.brand,
+    backgroundColor: 'rgba(15,15,15,0.55)',
+  },
+  durationBadgeText: { color: COLORS.brand, fontSize: 12, fontWeight: '600' },
   body: { padding: SPACING.lg },
   sectionTitle: {
     color: COLORS.brand, fontSize: 12, letterSpacing: 2,

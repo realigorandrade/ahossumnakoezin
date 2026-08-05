@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONTS, formatBRL, statusInfo, modalityLabel } from '@/src/theme';
 import { useAuth } from '@/src/auth';
@@ -13,6 +13,7 @@ type Booking = {
 
 export default function Appointments() {
   const { authFetch } = useAuth();
+  const router = useRouter();
   const [items, setItems] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,14 +83,26 @@ export default function Appointments() {
                   <Text style={styles.rowText}>{formatBRL(b.price)}</Text>
                 </View>
                 {canCancel && (
-                  <Pressable
-                    testID={`cancel-${b.id}`}
-                    onPress={() => cancel(b.id)}
-                    style={styles.cancelBtn}
-                  >
-                    <Ionicons name="close-circle-outline" size={16} color={COLORS.onError} />
-                    <Text style={styles.cancelText}>Cancelar</Text>
-                  </Pressable>
+                  <View style={{ flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap', marginTop: SPACING.sm }}>
+                    {b.status === 'aguardando_pagamento' && (
+                      <Pressable
+                        testID={`pay-${b.id}`}
+                        onPress={() => router.push(`/payment/${b.id}`)}
+                        style={styles.payBtn}
+                      >
+                        <Ionicons name="qr-code-outline" size={16} color={COLORS.onBrandPrimary} />
+                        <Text style={styles.payText}>Ver PIX / Enviar comprovante</Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      testID={`cancel-${b.id}`}
+                      onPress={() => cancel(b.id)}
+                      style={styles.cancelBtn}
+                    >
+                      <Ionicons name="close-circle-outline" size={16} color={COLORS.onError} />
+                      <Text style={styles.cancelText}>Cancelar</Text>
+                    </Pressable>
+                  </View>
                 )}
               </View>
             );
@@ -122,11 +135,16 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   rowText: { color: COLORS.onSurfaceSecondary, fontSize: 14 },
   cancelBtn: {
-    marginTop: SPACING.sm,
     alignSelf: 'flex-start',
     flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
     paddingHorizontal: SPACING.md, paddingVertical: 8,
     borderRadius: RADIUS.pill, backgroundColor: COLORS.error,
   },
   cancelText: { color: COLORS.onError, fontSize: 12, fontWeight: '600' },
+  payBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
+    paddingHorizontal: SPACING.md, paddingVertical: 8,
+    borderRadius: RADIUS.pill, backgroundColor: COLORS.brand,
+  },
+  payText: { color: COLORS.onBrandPrimary, fontSize: 12, fontWeight: '700' },
 });

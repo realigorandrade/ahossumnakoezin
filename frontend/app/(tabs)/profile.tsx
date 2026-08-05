@@ -5,6 +5,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/src/theme';
 import { useAuth } from '@/src/auth';
+import { openWhatsApp } from '@/src/support';
+
+const SUPPORT_WHATSAPP = '+5519988371125';
 
 export default function Profile() {
   const { user, updateProfile, logout } = useAuth();
@@ -63,6 +66,21 @@ export default function Profile() {
             {saving ? <ActivityIndicator color={COLORS.onBrandPrimary} /> : <Text style={styles.primaryBtnText}>Salvar alterações</Text>}
           </Pressable>
 
+          <View style={styles.supportSection}>
+            <Text style={styles.supportTitle}>Suporte</Text>
+            <Text style={styles.supportDesc}>
+              Precisa de ajuda? Fale diretamente com a casa espiritual pelo WhatsApp.
+            </Text>
+            <Pressable
+              testID="support-whatsapp"
+              onPress={() => openWhatsApp(SUPPORT_WHATSAPP, 'Olá! Preciso de suporte com o app KWE AHOSSUM NAKÓ EZIN.')}
+              style={styles.whatsBtn}
+            >
+              <Ionicons name="logo-whatsapp" size={20} color="#0F0F0F" />
+              <Text style={styles.whatsBtnText}>Falar no WhatsApp</Text>
+            </Pressable>
+          </View>
+
           <Pressable testID="profile-logout" onPress={doLogout} style={styles.logoutBtn}>
             <Ionicons name="log-out-outline" size={18} color={COLORS.error} />
             <Text style={styles.logoutText}>Sair da conta</Text>
@@ -108,6 +126,23 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginTop: SPACING.md,
   },
   primaryBtnText: { color: COLORS.onBrandPrimary, fontSize: 16, fontWeight: '700', letterSpacing: 1 },
+  supportSection: {
+    marginTop: SPACING.xl,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surfaceSecondary,
+    gap: SPACING.sm,
+  },
+  supportTitle: { color: COLORS.brand, fontSize: 12, letterSpacing: 2, textTransform: 'uppercase' },
+  supportDesc: { color: COLORS.onSurfaceSecondary, fontSize: 13, lineHeight: 18 },
+  whatsBtn: {
+    backgroundColor: '#25D366', paddingVertical: SPACING.md, borderRadius: RADIUS.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  whatsBtnText: { color: '#0F0F0F', fontWeight: '700', fontSize: 15 },
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
     paddingVertical: SPACING.lg, borderRadius: RADIUS.md,

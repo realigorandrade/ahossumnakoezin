@@ -39,9 +39,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="casa"
+        options={{
+          title: 'Casa',
+          tabBarIcon: ({ color, size }) => <Ionicons name="flame-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="appointments"
         options={{
-          title: 'Agendamentos',
+          title: 'Agenda',
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
         }}
       />

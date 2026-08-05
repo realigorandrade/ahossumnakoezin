@@ -4,7 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/src/theme';
-import Logo from '@/src/Logo';
 import { useAuth } from '@/src/auth';
 
 export default function Welcome() {
@@ -31,7 +30,7 @@ export default function Welcome() {
       />
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.center}>
-          <Logo size={96} />
+          <View style={styles.ornament} />
           <Text style={styles.title} testID="welcome-title">KWE AHOSSUM{"\n"}NAKÓ EZIN</Text>
           <View style={styles.divider} />
           <Text style={styles.subtitle}>Agendamento de Consultas Espirituais</Text>
@@ -63,6 +62,10 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.surface },
   safe: { flex: 1, paddingHorizontal: SPACING.xl, justifyContent: 'space-between' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.lg },
+  ornament: {
+    width: 90, height: 1, backgroundColor: COLORS.brand, opacity: 0.9,
+    shadowColor: COLORS.brand, shadowOpacity: 0.6, shadowRadius: 8,
+  },
   title: {
     color: COLORS.onSurface,
     fontFamily: FONTS.displayBold,
@@ -70,7 +73,6 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     textAlign: 'center',
     letterSpacing: 2,
-    marginTop: SPACING.lg,
   },
   divider: { width: 60, height: 1, backgroundColor: COLORS.brand, marginTop: SPACING.xs },
   subtitle: {

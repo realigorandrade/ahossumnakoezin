@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 3 backend + frontend testing PASSED. Backend: 14/14 pytest tests pass on new endpoints (4 services with duration_minutes, public /settings, /events, admin payment-settings/gira/events CRUD, notifications queue for register + booking). Frontend: welcome screen has no logo circle (ornament + title + subtitle + Eliton d'Ajauncy + buttons only), Home shows 4 service cards with duration pills (60/90/30 min) and modality pills, Búzios image updated (not parachutes), Service detail shows 'Duração estimada' badge, booking correctly redirects to /payment/{id} which shows PIX key 'kwe.ahossum@pix.com.br', 'Copiar Chave PIX' and green 'Falar no WhatsApp'/'Enviar comprovante' buttons, Casa tab shows Giras card (Quarta-feira · 19:30 + note) and 3 event cards (Erê, Maria Padilha, Obaluaê), Profile has 'SUPORTE' section with green WhatsApp button, Admin has all 6 tabs (Agendamentos/Clientes/Horários/Serviços/Eventos/Configurações), Eventos tab shows add-event form + list, Configurações shows PIX + Giras editors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin dashboard", "issues": ["Tabs row is horizontally scrollable on 390px width — 6 tabs don't fit at once (expected on mobile). No visible scroll indicator; users may not realize Eventos/Configurações exist without scrolling right. Minor UX polish."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_iteration3.py",
+    "/app/test_reports/pytest/iteration3_results.xml"
+  ],
+  "action_items": [
+    "Optional UX polish: add a horizontal scroll hint (gradient/arrow) on the admin tabs row so users notice Eventos/Configurações exist beyond the visible area on 390px viewport.",
+    "Consider splitting /app/backend/server.py (840 lines) into routers (auth, services, bookings, admin, events, settings) as it now exceeds the 700-line guideline. Non-blocking."
+  ],
+  "critical_code_review_comments": [
+    "server.py properly excludes MongoDB _id from all responses.",
+    "Public /api/settings correctly exposes pix_key/pix_holder/support_whatsapp/gira/working_hours without auth (as spec requires).",
+    "get_settings() has a backfill mechanism ensuring old DBs still get pix_key/gira defaults on next read — nice.",
+    "Admin authorization enforced via admin_required for payment-settings, gira, events, notifications endpoints — 403 tested for user role.",
+    "Notification queue writes are non-blocking (fire-and-forget), stored with status='pending' and kind ('new_user'|'new_booking') as specified.",
+    "server.py grew to 840 lines with iteration 3 — approaching split threshold (guideline: 700).",
+    "Frontend uses testID broadly (welcome, login, register, home, service, payment, casa, profile) — good testability.",
+    "Payment gateway is MOCKED as noted in review_request: admin manually confirms via POST /api/admin/bookings/{id}/confirm-payment; no live PSP call — correctly implemented."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration3.py (created)"],
+  "success_rate": {"backend": "100% (14/14 iteration 3 tests)", "frontend": "100% (all specified screens/flows verified)"},
+  "seed_data_creation": "Test-only users TEST_i3_*@test.com, TEST_notif_*@test.com, TEST_ui_*@t.com created during automated pytest+playwright. One TEST_ evento created and cleaned up. Backend seed provides admin + 4 services + 3 events + default settings.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend URL from EXPO_PUBLIC_BACKEND_URL. Admin: admin@kwe.com/Admin@123. 4 services: tarot(60min,R$150), buzios(60min,R$180), pombo-gira(90min,R$250 presencial-only), banhos-ervas(30min,R$80 presencial-only). Public endpoints (no auth): /api/services, /api/services/{id}, /api/settings, /api/events, /api/slots. Notification queue at /api/admin/notifications stores 'new_user' and 'new_booking' with status='pending' — WhatsApp send is STRUCTURE ONLY (no live send). Payment is MOCKED — admin manually confirms via /api/admin/bookings/{id}/confirm-payment. Working hours Mon-Sat 10:00-18:00 90min blocks (slots: 10:00, 11:30, 13:00, 14:30, 16:00). Tab labels on mobile: Início/Casa/Agenda/Perfil. Admin panel opens at /admin route (auto-redirect on admin login).",
+  "rca_of_issue": "N/A — all iteration 3 features work as specified. One initial test assertion issue (notification email casing) was found and fixed inside the test only; backend correctly lowercases emails in stored notifications."
+}

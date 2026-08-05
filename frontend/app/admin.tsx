@@ -24,7 +24,7 @@ const STATUS_OPTIONS = [
 export default function Admin() {
   const { user, logout, authFetch } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<'bookings' | 'clients' | 'schedule' | 'services'>('bookings');
+  const [tab, setTab] = useState<'bookings' | 'clients' | 'schedule' | 'services' | 'events' | 'config'>('bookings');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,6 +108,8 @@ export default function Admin() {
               { k: 'clients', label: 'Clientes' },
               { k: 'schedule', label: 'Horários' },
               { k: 'services', label: 'Serviços' },
+              { k: 'events', label: 'Eventos' },
+              { k: 'config', label: 'Configurações' },
             ].map(t => (
               <Pressable
                 key={t.k}
@@ -202,6 +204,8 @@ export default function Admin() {
           {tab === 'clients' && <ClientsTab authFetch={authFetch} />}
           {tab === 'schedule' && <ScheduleTab authFetch={authFetch} />}
           {tab === 'services' && <ServicesTab authFetch={authFetch} />}
+          {tab === 'events' && <EventsTab authFetch={authFetch} />}
+          {tab === 'config' && <ConfigTab authFetch={authFetch} />}
         </ScrollView>
       )}
 
@@ -364,25 +368,29 @@ function ScheduleTab({ authFetch }: any) {
 }
 
 function ServicesTab({ authFetch }: any) {
-  const [services, setServices] = useState<Service[]>([]);
-  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [services, setServices] = useState<any[]>([]);
+  const [edits, setEdits] = useState<Record<string, { price: string; duration: string }>>({});
 
   const load = useCallback(async () => {
     const r = await authFetch('/services');
     if (r.ok) {
       const data = await r.json();
       setServices(data);
-      const m: Record<string, string> = {};
-      data.forEach((s: Service) => { m[s.id] = String(s.price); });
+      const m: Record<string, { price: string; duration: string }> = {};
+      data.forEach((s: any) => { m[s.id] = { price: String(s.price), duration: String(s.duration_minutes || 60) }; });
       setEdits(m);
     }
   }, [authFetch]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const savePrice = async (id: string) => {
-    const price = parseFloat(edits[id]);
-    if (isNaN(price)) return;
-    await authFetch(`/admin/services/${id}`, { method: 'PUT', body: JSON.stringify({ price }) });
+  const saveService = async (id: string) => {
+    const price = parseFloat(edits[id]?.price);
+    const duration_minutes = parseInt(edits[id]?.duration);
+    const body: any = {};
+    if (!isNaN(price)) body.price = price;
+    if (!isNaN(duration_minutes)) body.duration_minutes = duration_minutes;
+    if (Object.keys(body).length === 0) return;
+    await authFetch(`/admin/services/${id}`, { method: 'PUT', body: JSON.stringify(body) });
     load();
   };
 
@@ -391,23 +399,177 @@ function ServicesTab({ authFetch }: any) {
       {services.map(s => (
         <View key={s.id} style={styles.bcard}>
           <Text style={styles.bTitle}>{s.name}</Text>
-          <Text style={styles.bMeta}>Valor atual: {formatBRL(s.price)}</Text>
-          <View style={{ flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm, alignItems: 'center' }}>
-            <TextInput
-              testID={`svc-price-${s.id}`}
-              value={edits[s.id] || ''}
-              onChangeText={v => setEdits({ ...edits, [s.id]: v })}
-              placeholder="Novo valor"
-              placeholderTextColor={COLORS.muted}
-              style={[styles.tinyInput, { flex: 1 }]}
-              keyboardType="decimal-pad"
-            />
-            <Pressable testID={`save-price-${s.id}`} onPress={() => savePrice(s.id)} style={styles.smallBtn}>
-              <Text style={styles.smallBtnText}>Salvar</Text>
-            </Pressable>
+          <Text style={styles.bMeta}>Valor atual: {formatBRL(s.price)} · {s.duration_minutes || 60} min</Text>
+          <View style={{ flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tinyLabel}>Preço (R$)</Text>
+              <TextInput
+                testID={`svc-price-${s.id}`}
+                value={edits[s.id]?.price || ''}
+                onChangeText={v => setEdits({ ...edits, [s.id]: { ...(edits[s.id] || { duration: '' }), price: v } })}
+                placeholderTextColor={COLORS.muted}
+                style={styles.tinyInput}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tinyLabel}>Duração (min)</Text>
+              <TextInput
+                testID={`svc-duration-${s.id}`}
+                value={edits[s.id]?.duration || ''}
+                onChangeText={v => setEdits({ ...edits, [s.id]: { ...(edits[s.id] || { price: '' }), duration: v } })}
+                placeholderTextColor={COLORS.muted}
+                style={styles.tinyInput}
+                keyboardType="number-pad"
+              />
+            </View>
           </View>
+          <Pressable testID={`save-svc-${s.id}`} onPress={() => saveService(s.id)} style={styles.smallBtn}>
+            <Text style={styles.smallBtnText}>Salvar</Text>
+          </Pressable>
         </View>
       ))}
+    </View>
+  );
+}
+
+function EventsTab({ authFetch }: any) {
+  const [events, setEvents] = useState<any[]>([]);
+  const [form, setForm] = useState({ title: '', month: '', date: '', time: '', recurrence: '', description: '' });
+
+  const load = useCallback(async () => {
+    const r = await authFetch('/events');
+    if (r.ok) setEvents(await r.json());
+  }, [authFetch]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const add = async () => {
+    if (!form.title) return;
+    const payload: any = { title: form.title, category: 'evento' };
+    if (form.month) payload.month = form.month;
+    if (form.date) payload.date = form.date;
+    if (form.time) payload.time = form.time;
+    if (form.recurrence) payload.recurrence = form.recurrence;
+    if (form.description) payload.description = form.description;
+    await authFetch('/admin/events', { method: 'POST', body: JSON.stringify(payload) });
+    setForm({ title: '', month: '', date: '', time: '', recurrence: '', description: '' });
+    load();
+  };
+
+  const del = async (id: string) => {
+    await authFetch(`/admin/events/${id}`, { method: 'DELETE' });
+    load();
+  };
+
+  return (
+    <View style={{ gap: SPACING.lg }}>
+      <View style={styles.bcard}>
+        <Text style={styles.bTitle}>Adicionar evento</Text>
+        <TextInput testID="ev-title" value={form.title} onChangeText={v => setForm({ ...form, title: v })} placeholder="Título" placeholderTextColor={COLORS.muted} style={[styles.tinyInput, { marginTop: SPACING.sm }]} />
+        <View style={{ flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm }}>
+          <TextInput testID="ev-month" value={form.month} onChangeText={v => setForm({ ...form, month: v })} placeholder="Mês (ex: Agosto)" placeholderTextColor={COLORS.muted} style={[styles.tinyInput, { flex: 1 }]} />
+          <TextInput testID="ev-date" value={form.date} onChangeText={v => setForm({ ...form, date: v })} placeholder="YYYY-MM-DD" placeholderTextColor={COLORS.muted} style={[styles.tinyInput, { flex: 1 }]} />
+          <TextInput testID="ev-time" value={form.time} onChangeText={v => setForm({ ...form, time: v })} placeholder="HH:MM" placeholderTextColor={COLORS.muted} style={[styles.tinyInput, { flex: 1 }]} />
+        </View>
+        <TextInput testID="ev-recurrence" value={form.recurrence} onChangeText={v => setForm({ ...form, recurrence: v })} placeholder="Recorrência (ex: Todas as segundas-feiras)" placeholderTextColor={COLORS.muted} style={[styles.tinyInput, { marginTop: SPACING.sm }]} />
+        <TextInput testID="ev-desc" value={form.description} onChangeText={v => setForm({ ...form, description: v })} placeholder="Descrição" placeholderTextColor={COLORS.muted} style={[styles.tinyInput, { marginTop: SPACING.sm, minHeight: 60 }]} multiline />
+        <Pressable testID="ev-add" onPress={add} style={styles.smallBtn}>
+          <Text style={styles.smallBtnText}>Adicionar evento</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.bcard}>
+        <Text style={styles.bTitle}>Eventos cadastrados</Text>
+        {events.length === 0 && <Text style={styles.bMeta}>Nenhum evento.</Text>}
+        {events.map((e: any) => (
+          <View key={e.id} style={styles.listRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: COLORS.onSurface, fontWeight: '700', fontSize: 13 }}>{e.title}</Text>
+              <Text style={styles.listText}>
+                {e.month ? `${e.month} · ` : ''}{e.recurrence || (e.date || 'sem data')}{e.time ? ` · ${e.time}` : ''}
+              </Text>
+            </View>
+            <Pressable onPress={() => del(e.id)} testID={`ev-del-${e.id}`}>
+              <Ionicons name="trash-outline" size={16} color={COLORS.error} />
+            </Pressable>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function ConfigTab({ authFetch }: any) {
+  const [pix, setPix] = useState({ pix_key: '', pix_holder: '', support_whatsapp: '' });
+  const [gira, setGira] = useState<{ weekday: number; time: string; note: string }>({ weekday: 2, time: '19:30', note: '' });
+  const [msg, setMsg] = useState<string>('');
+
+  const load = useCallback(async () => {
+    const r = await authFetch('/settings');
+    if (r.ok) {
+      const s = await r.json();
+      setPix({ pix_key: s.pix_key || '', pix_holder: s.pix_holder || '', support_whatsapp: s.support_whatsapp || '' });
+      if (s.gira) setGira({ weekday: s.gira.weekday, time: s.gira.time, note: s.gira.note || '' });
+    }
+  }, [authFetch]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const savePix = async () => {
+    await authFetch('/admin/payment-settings', { method: 'PUT', body: JSON.stringify(pix) });
+    setMsg('Dados de pagamento e suporte atualizados');
+    setTimeout(() => setMsg(''), 2500);
+  };
+  const saveGira = async () => {
+    await authFetch('/admin/gira', { method: 'PUT', body: JSON.stringify(gira) });
+    setMsg('Gira atualizada');
+    setTimeout(() => setMsg(''), 2500);
+  };
+
+  const weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+  return (
+    <View style={{ gap: SPACING.lg }}>
+      {msg ? <Text style={{ color: COLORS.onSuccess, backgroundColor: COLORS.success, padding: SPACING.md, borderRadius: RADIUS.sm }}>{msg}</Text> : null}
+
+      <View style={styles.bcard}>
+        <Text style={styles.bTitle}>Pagamento (PIX) e Suporte</Text>
+        <Text style={styles.tinyLabel}>Chave PIX</Text>
+        <TextInput testID="cfg-pix-key" value={pix.pix_key} onChangeText={v => setPix({ ...pix, pix_key: v })} placeholder="chave@pix.com" placeholderTextColor={COLORS.muted} style={styles.tinyInput} />
+        <Text style={styles.tinyLabel}>Titular da chave</Text>
+        <TextInput testID="cfg-pix-holder" value={pix.pix_holder} onChangeText={v => setPix({ ...pix, pix_holder: v })} placeholder="Nome do titular" placeholderTextColor={COLORS.muted} style={styles.tinyInput} />
+        <Text style={styles.tinyLabel}>WhatsApp de suporte (com DDI)</Text>
+        <TextInput testID="cfg-whatsapp" value={pix.support_whatsapp} onChangeText={v => setPix({ ...pix, support_whatsapp: v })} placeholder="+5519988371125" placeholderTextColor={COLORS.muted} style={styles.tinyInput} keyboardType="phone-pad" />
+        <Pressable testID="cfg-pix-save" onPress={savePix} style={styles.smallBtn}>
+          <Text style={styles.smallBtnText}>Salvar</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.bcard}>
+        <Text style={styles.bTitle}>Giras (dia e horário)</Text>
+        <Text style={styles.tinyLabel}>Dia da semana</Text>
+        <View style={{ flexDirection: 'row', gap: 6, marginTop: SPACING.xs, flexWrap: 'wrap' }}>
+          {weekdays.map((w, idx) => {
+            const active = gira.weekday === idx;
+            return (
+              <Pressable
+                key={w}
+                testID={`gira-wd-${idx}`}
+                onPress={() => setGira({ ...gira, weekday: idx })}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+              >
+                <Text style={[styles.filterText, active && styles.filterTextActive]}>{w}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={styles.tinyLabel}>Horário</Text>
+        <TextInput testID="gira-time" value={gira.time} onChangeText={v => setGira({ ...gira, time: v })} placeholder="19:30" placeholderTextColor={COLORS.muted} style={styles.tinyInput} />
+        <Text style={styles.tinyLabel}>Aviso</Text>
+        <TextInput testID="gira-note" value={gira.note} onChangeText={v => setGira({ ...gira, note: v })} placeholder="Horário sujeito a alterações." placeholderTextColor={COLORS.muted} style={styles.tinyInput} />
+        <Pressable testID="gira-save" onPress={saveGira} style={styles.smallBtn}>
+          <Text style={styles.smallBtnText}>Salvar</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -477,6 +639,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.sm,
     backgroundColor: COLORS.surface,
   },
+  tinyLabel: { color: COLORS.brand, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', marginTop: SPACING.sm },
   smallBtn: {
     marginTop: SPACING.sm, backgroundColor: COLORS.brand,
     paddingVertical: 10, borderRadius: RADIUS.sm, alignItems: 'center',
