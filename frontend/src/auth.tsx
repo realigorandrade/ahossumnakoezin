@@ -3,10 +3,12 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { API_BASE as THEME_API_BASE } from './theme';
 
-// Garante que a chamada vá para o Render caso a variável no theme venha vazia ou relativa
-const API_BASE = THEME_API_BASE && THEME_API_BASE.startsWith('http') 
-  ? THEME_API_BASE 
+// Define a base da URL apontando corretamente para as rotas com /api do FastAPI
+const BASE_URL = THEME_API_BASE && THEME_API_BASE.startsWith('http') 
+  ? THEME_API_BASE.replace(/\/$/, '')
   : 'https://ahossumnakoezin.onrender.com';
+
+const API_BASE = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
 
 export type User = {
   id: string;
@@ -110,20 +112,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [persist]);
 
   const register = useCallback(async (payload: RegisterPayload) => {
-    // Tenta primeiro no endpoint com prefixo /auth/register, e se não encontrar tenta no /register
-    let r = await fetch(`${API_BASE}/auth/register`, {
+    const r = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-
-    if (r.status === 404) {
-      r = await fetch(`${API_BASE}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-    }
 
     const { ok, data } = await parseResponse(r);
     if (!ok) throw new Error(data.detail || data.message || 'Falha no cadastro');
@@ -141,7 +134,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const headers: any = { ...(init.headers || {}) };
     if (token) headers.Authorization = `Bearer ${token}`;
     if (init.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-    return fetch(`${API_BASE}${path}`, { ...init, headers });
+    
+    // Formata o path garantindo a inclusão correta de barras
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return fetch(`${API_BASE}${cleanPath}`, { ...init, headers });
   }, [token]);
 
   const updateProfile = useCallback(async (patch: Partial<RegisterPayload>) => {
