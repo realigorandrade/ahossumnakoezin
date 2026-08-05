@@ -1,0 +1,181 @@
+{
+  "app_name": "KWE AHOSSUM NAKÓ EZIN",
+  "personality": "6 Glass / Luxe DARK",
+  "personality_one_liner": "A cinematic, expensive, and restrained spiritual experience using midnight black, antique gold, and subtle glass depth.",
+  "color": {
+    "surface": "#0F0F0F",
+    "onSurface": "#F7F5F0",
+    "surfaceSecondary": "#1C1A17",
+    "onSurfaceSecondary": "#E8E4D9",
+    "surfaceTertiary": "#26231E",
+    "onSurfaceTertiary": "#D1CCBF",
+    "surfaceInverse": "#F7F5F0",
+    "onSurfaceInverse": "#0F0F0F",
+    "brand": "#D4AF37",
+    "brandPrimary": "#D4AF37",
+    "onBrandPrimary": "#0F0F0F",
+    "brandSecondary": "#AA8327",
+    "onBrandSecondary": "#F7F5F0",
+    "brandTertiary": "#3B311B",
+    "onBrandTertiary": "#E8D18C",
+    "success": "#2D4A32",
+    "onSuccess": "#8CE8A0",
+    "warning": "#5C4515",
+    "onWarning": "#F0C873",
+    "error": "#4A2424",
+    "onError": "#E89292",
+    "info": "#332F29",
+    "onInfo": "#E0DFDC",
+    "border": "#2E2A24",
+    "borderStrong": "#4F483D",
+    "divider": "#211E1A"
+  },
+  "typography": {
+    "displayFontFamily": "CormorantGaramond",
+    "textFontFamily": "Satoshi",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous vertical breathing room. Cards never flush to screen edge. Forms single column with safe-area bottom clearance.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": 2,
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Sticky headers over scrolling content",
+      "Bottom tab bar",
+      "Featured/hero cards layered over a subtle gold tint or photo backdrop",
+      "Modal scrims"
+    ],
+    "dont's": [
+      "Form fields",
+      "Dense data rows in the Admin dashboard",
+      "Body text regions"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "haptics": {
+    "primary_button_press": "impactLight",
+    "tab_change": "selection",
+    "time_slot_select": "selection",
+    "date_picker_scroll": "selection",
+    "booking_confirm": "notificationSuccess"
+  },
+  "screens": [
+    {
+      "name": "Onboarding/Welcome",
+      "purpose": "Immersive landing scene to set the spiritual, elegant tone.",
+      "states": {
+        "loading": "Centered gold spinner over black background",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "Full-bleed abstract gold luxury background with vertical gradient scrim (transparent to surface). Large Cormorant Garamond title 'KWE AHOSSUM NAKÓ EZIN' centered. Subtitle 'Agendamento de Consultas Espirituais'. Sticky bottom button container with 'Entrar' (ghost) and 'Criar conta' (solid brandPrimary)."
+    },
+    {
+      "name": "Registration & Login",
+      "purpose": "Elegant, single-column forms for authentication.",
+      "states": {
+        "loading": "Spinner overlaid on disabled submit button",
+        "empty": "N/A",
+        "error": "Inline red text below inputs, haptic error"
+      },
+      "layout": "Clean dark screens. Large serif header. Inputs use surfaceSecondary with bottom borders (borderStrong on focus). Single column. Submit button sticky at bottom inside KeyboardAvoidingView."
+    },
+    {
+      "name": "Home",
+      "purpose": "Display available spiritual services.",
+      "states": {
+        "loading": "Skeleton cards with subtle shimmer",
+        "empty": "Illustration + 'Nenhum serviço disponível no momento'",
+        "error": "Message + 'Tentar novamente' button"
+      },
+      "layout": "Header with 'Bem-vindo(a), [Name]' and settings icon. 2 large vertical feature cards (Búzios/Tarot and Pombo Gira). Cards use glassmorphism overlaid on deep imagery (Tarot and Candles), protected by gradient scrims. Content at the bottom 40% of the card: Service name, Price pill, and arrow icon."
+    },
+    {
+      "name": "Service Detail (Booking)",
+      "purpose": "Step-by-step reservation flow (Modality, Date, Time, Terms).",
+      "states": {
+        "loading": "Loading slots spinner",
+        "empty": "N/A",
+        "error": "Error fetching slots."
+      },
+      "layout": "Image header (hero). Modality selection as large pills (Presencial / Online). Date selector as a horizontally scrolling list of days. Time slot selector as a 3-column pill grid. Checkbox for Terms acceptance. Sticky bottom CTA with price and 'Agendar'."
+    },
+    {
+      "name": "My Appointments",
+      "purpose": "List of user's past and upcoming bookings.",
+      "states": {
+        "loading": "Skeleton list",
+        "empty": "Illustration of an empty calendar + 'Nenhum agendamento encontrado'",
+        "error": "Error fetching appointments"
+      },
+      "layout": "Top tab bar (Próximos / Histórico). Vertical list of cards (surfaceSecondary). Each card has service title, date/time, and a colored status badge (success, warning, error, surfaceTertiary)."
+    },
+    {
+      "name": "Admin Panel",
+      "purpose": "Dashboard for Eliton d'Ajauncy to manage bookings and schedule.",
+      "states": {
+        "loading": "Dashboard skeleton",
+        "empty": "No bookings for selected period",
+        "error": "Error loading admin data"
+      },
+      "layout": "Utility-first dark dashboard. Top stats row (Today's revenue, Pending bookings). List of appointments with direct actions (Confirm Payment, Cancel). Horizontal filter scroll (Status, Date). Floating action button for schedule blockings/settings."
+    }
+  ],
+  "images": {
+    "welcome_hero": {
+      "url": "https://images.unsplash.com/photo-1513346940221-6f673d962e97?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjBsdXh1cnklMjBnb2xkJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODU4OTA2MjZ8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Abstract dark luxury gold background for onboarding"
+    },
+    "service_tarot": {
+      "url": "https://images.unsplash.com/photo-1613738053817-7f0983aa456d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTN8MHwxfHNlYXJjaHwxfHx0YXJvdCUyMGNhcmRzJTIwZGFyayUyMGdvbGQlMjBhZXN0aGV0aWN8ZW58MHx8fHwxNzg1ODkwNjI2fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Dark gold aesthetic tarot cards"
+    },
+    "service_pombo_gira": {
+      "url": "https://images.unsplash.com/photo-1615793171257-3fd80dd14091?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwxfHxteXN0aWMlMjBjYW5kbGVzJTIwZGFyayUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzg1ODkwNjI2fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Mystic candles dark background"
+    }
+  },
+  "instructions_to_main_agent": [
+    "STRICTLY adhere to the Glass / Luxe DARK personality. Do NOT use any blues, purples, or indigos anywhere in the app (including default React Native link colors).",
+    "For the booking flow, ensure the sticky CTA resides outside the ScrollView inside a fixed container at the screen root, overlaid using expo-glass-effect or expo-blur.",
+    "Implement a mandatory gradient-to-dark scrim pattern (transparent to surface) on all image cards (Home feature cards and Welcome screen) to ensure text readability.",
+    "Status badges in the Appointments list must use the semantic colors provided: success (Confirmado), warning (Aguardando pagamento), error (Cancelado).",
+    "Use Phosphor icons with consistent weight (preferably 'thin' or 'light' to match the luxury aesthetic).",
+    "Admin dashboard must remain dark and utility-first, using the provided neutral colors instead of heavy glass to keep information dense and readable.",
+    "Forms should have 'safe-area' bottom padding when the keyboard is open. Inputs should use placeholder text with 'onSurfaceTertiary' color to maintain contrast without being distracting."
+  ]
+}
