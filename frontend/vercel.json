@@ -1,10 +1,15 @@
 {
-  "installCommand": "npm install --production=false",
-  "buildCommand": "npx --no-install vite build",
-  "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/register",
+      "destination": "https://ahossumnakoezin.onrender.com/register"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://ahossumnakoezin.onrender.com/api/:path*"
+    },
+    {
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]
