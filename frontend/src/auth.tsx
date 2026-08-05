@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { API_BASE } from './theme';
+import { API_BASE as THEME_API_BASE } from './theme';
+
+// Garante que a chamada vá para o Render caso a variável no theme venha vazia ou relativa
+const API_BASE = THEME_API_BASE && THEME_API_BASE.startsWith('http') 
+  ? THEME_API_BASE 
+  : 'https://ahossumnakoezin.onrender.com';
 
 export type User = {
   id: string;
@@ -40,6 +45,7 @@ async function storeGet(): Promise<string | null> {
   if (Platform.OS === 'web') return typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
   return SecureStore.getItemAsync(KEY);
 }
+
 async function storeSet(v: string | null) {
   if (Platform.OS === 'web') {
     if (typeof localStorage === 'undefined') return;
@@ -48,6 +54,20 @@ async function storeSet(v: string | null) {
   }
   if (v === null) await SecureStore.deleteItemAsync(KEY);
   else await SecureStore.setItemAsync(KEY, v);
+}
+
+// Função auxiliar para tratar a leitura de respostas JSON com segurança
+async function parseResponse(response: Response) {
+  const text = await response.text();
+  let data: any = {};
+  if (text && text.trim().length > 0) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { rawText: text };
+    }
+  }
+  return { ok: response.ok, status: response.status, data };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -80,22 +100,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.detail || 'Falha no login');
-    await persist(data.access_token, data.user);
-    return data.user as User;
+
+    const { ok, data } = await parseResponse(r);
+    if (!ok) throw new Error(data.detail || data.message || 'Falha no login');
+
+    const userData = data.user || data;
+    await persist(data.access_token || '', userData);
+    return userData as User;
   }, [persist]);
 
   const register = useCallback(async (payload: RegisterPayload) => {
-    const r = await fetch(`${API_BASE}/auth/register`, {
+    // Tenta primeiro no endpoint com prefixo /auth/register, e se não encontrar tenta no /register
+    let r = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.detail || 'Falha no cadastro');
-    await persist(data.access_token, data.user);
-    return data.user as User;
+
+    if (r.status === 404) {
+      r = await fetch(`${API_BASE}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
+
+    const { ok, data } = await parseResponse(r);
+    if (!ok) throw new Error(data.detail || data.message || 'Falha no cadastro');
+
+    const userData = data.user || data || { role: 'user' };
+    await persist(data.access_token || null, userData);
+    return userData as User;
   }, [persist]);
 
   const logout = useCallback(async () => {
@@ -111,8 +146,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = useCallback(async (patch: Partial<RegisterPayload>) => {
     const r = await authFetch('/auth/profile', { method: 'PUT', body: JSON.stringify(patch) });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.detail || 'Falha ao atualizar perfil');
+    const { ok, data } = await parseResponse(r);
+    if (!ok) throw new Error(data.detail || data.message || 'Falha ao atualizar perfil');
     await persist(token, data);
     return data as User;
   }, [authFetch, token, persist]);
