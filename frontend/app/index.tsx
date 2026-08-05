@@ -1,30 +1,100 @@
-import { Text, View, StyleSheet, Image } from "react-native";
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable, ImageBackground } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { COLORS, SPACING, RADIUS, FONTS } from '@/src/theme';
+import Logo from '@/src/Logo';
+import { useAuth } from '@/src/auth';
 
-const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+export default function Welcome() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
 
-export default function Index() {
-  console.log(EXPO_PUBLIC_BACKEND_URL, "EXPO_PUBLIC_BACKEND_URL");
+  useEffect(() => {
+    if (!loading && user) {
+      if (user.role === 'admin') router.replace('/admin');
+      else router.replace('/(tabs)/home');
+    }
+  }, [user, loading, router]);
 
   return (
-    <View style={styles.container}>
-      <Image
-        source={require("../assets/images/app-image.png")}
-        style={styles.image}
+    <View style={styles.root} testID="welcome-screen">
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-1513346940221-6f673d962e97?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200' }}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
       />
+      <LinearGradient
+        colors={['rgba(15,15,15,0.55)', 'rgba(15,15,15,0.85)', COLORS.surface]}
+        style={StyleSheet.absoluteFill}
+      />
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={styles.center}>
+          <Logo size={96} />
+          <Text style={styles.title} testID="welcome-title">KWE AHOSSUM{"\n"}NAKÓ EZIN</Text>
+          <View style={styles.divider} />
+          <Text style={styles.subtitle}>Agendamento de Consultas Espirituais</Text>
+          <Text style={styles.owner}>Eliton d&apos;Ajauncy</Text>
+        </View>
+
+        <View style={styles.actions}>
+          <Pressable
+            testID="welcome-login-button"
+            onPress={() => router.push('/login')}
+            style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.primaryBtnText}>Entrar</Text>
+          </Pressable>
+          <Pressable
+            testID="welcome-register-button"
+            onPress={() => router.push('/register')}
+            style={({ pressed }) => [styles.ghostBtn, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.ghostBtnText}>Criar conta</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0c0c0c",
-    alignItems: "center",
-    justifyContent: "center",
+  root: { flex: 1, backgroundColor: COLORS.surface },
+  safe: { flex: 1, paddingHorizontal: SPACING.xl, justifyContent: 'space-between' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.lg },
+  title: {
+    color: COLORS.onSurface,
+    fontFamily: FONTS.displayBold,
+    fontSize: 34,
+    lineHeight: 40,
+    textAlign: 'center',
+    letterSpacing: 2,
+    marginTop: SPACING.lg,
   },
-  image: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "contain",
+  divider: { width: 60, height: 1, backgroundColor: COLORS.brand, marginTop: SPACING.xs },
+  subtitle: {
+    color: COLORS.onSurfaceSecondary, fontSize: 15, letterSpacing: 1.5,
+    textAlign: 'center', textTransform: 'uppercase',
   },
+  owner: {
+    color: COLORS.brand, fontFamily: FONTS.displayRegular, fontSize: 18,
+    fontStyle: 'italic', marginTop: SPACING.xs,
+  },
+  actions: { gap: SPACING.md, paddingBottom: SPACING.lg },
+  primaryBtn: {
+    backgroundColor: COLORS.brand,
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+  },
+  primaryBtnText: { color: COLORS.onBrandPrimary, fontSize: 16, fontWeight: '700', letterSpacing: 1 },
+  ghostBtn: {
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.brand,
+    alignItems: 'center',
+  },
+  ghostBtnText: { color: COLORS.brand, fontSize: 16, fontWeight: '600', letterSpacing: 1 },
 });
